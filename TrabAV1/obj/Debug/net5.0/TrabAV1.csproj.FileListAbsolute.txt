@@ -1,0 +1,16 @@
+C:\Users\jonas\RiderProjects\TrabAV1\TrabAV1\bin\Debug\net5.0\TrabAV1.exe
+C:\Users\jonas\RiderProjects\TrabAV1\TrabAV1\bin\Debug\net5.0\TrabAV1.deps.json
+C:\Users\jonas\RiderProjects\TrabAV1\TrabAV1\bin\Debug\net5.0\TrabAV1.runtimeconfig.json
+C:\Users\jonas\RiderProjects\TrabAV1\TrabAV1\bin\Debug\net5.0\TrabAV1.runtimeconfig.dev.json
+C:\Users\jonas\RiderProjects\TrabAV1\TrabAV1\bin\Debug\net5.0\TrabAV1.dll
+C:\Users\jonas\RiderProjects\TrabAV1\TrabAV1\bin\Debug\net5.0\ref\TrabAV1.dll
+C:\Users\jonas\RiderProjects\TrabAV1\TrabAV1\bin\Debug\net5.0\TrabAV1.pdb
+C:\Users\jonas\RiderProjects\TrabAV1\TrabAV1\obj\Debug\net5.0\TrabAV1.csprojAssemblyReference.cache
+C:\Users\jonas\RiderProjects\TrabAV1\TrabAV1\obj\Debug\net5.0\TrabAV1.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\jonas\RiderProjects\TrabAV1\TrabAV1\obj\Debug\net5.0\TrabAV1.AssemblyInfoInputs.cache
+C:\Users\jonas\RiderProjects\TrabAV1\TrabAV1\obj\Debug\net5.0\TrabAV1.AssemblyInfo.cs
+C:\Users\jonas\RiderProjects\TrabAV1\TrabAV1\obj\Debug\net5.0\TrabAV1.csproj.CoreCompileInputs.cache
+C:\Users\jonas\RiderProjects\TrabAV1\TrabAV1\obj\Debug\net5.0\TrabAV1.dll
+C:\Users\jonas\RiderProjects\TrabAV1\TrabAV1\obj\Debug\net5.0\ref\TrabAV1.dll
+C:\Users\jonas\RiderProjects\TrabAV1\TrabAV1\obj\Debug\net5.0\TrabAV1.pdb
+C:\Users\jonas\RiderProjects\TrabAV1\TrabAV1\obj\Debug\net5.0\TrabAV1.genruntimeconfig.cache

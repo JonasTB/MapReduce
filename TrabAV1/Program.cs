@@ -13,21 +13,19 @@ namespace TrabAV1
         {
             var text = string.Join("\n", Enumerable.Repeat("Deer Bear River\nCar Car River\nDeer Car Bear", 500));
 
-            var builder = MapReduce.MapReduce
-                .WithInput<string>()
-                .WithReader(input => input.Split("\n"))
-                .WithMapper(data =>
+            var mapReduce = new CKVMapReduce<string, string, string, int>
+            {
+                Read = input => input.Split("\n"),
+                Map = data =>
                 {
                     var keys = data.Split(" ");
                     return keys.Select(k => new KeyValuePair<string, int>(k, 1));
-                })
-                .WithReducer((word, instances) => instances.Sum())
-                .WithWriter(pair => System.Console.WriteLine($"Key: {pair.Key} | Value: {pair.Value}"));
-                
-            var ckv = builder.Build<CKVMapReduce<string, string, string, int>>();
-
+                },
+                Reduce = (word, instances) => instances.Sum(),
+                Write = pair => System.Console.WriteLine($"Key: {pair.Key} | Value: {pair.Value}")
+            };
             var sw = Stopwatch.StartNew();
-            await ckv.RunAsync(text, 4);
+            await mapReduce.RunAsync(text, 4);
             sw.Stop();
 
             Console.WriteLine($"Low-Level Map Reduce ran in {sw.ElapsedMilliseconds}ms");

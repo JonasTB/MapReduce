@@ -9,13 +9,13 @@ using TrabAV1.WordCount;
 
 namespace TrabAV1.MapReduce
 {
-    public class CKVMapReduce<IInput, IWord, IKey, IValue> : IMapReduce<IInput, IWord, IKey, IValue>
+    public class CKVMapReduce<IInput, IWord, IKey, IValue>
     {
-        internal Func<IInput, IEnumerable<IWord>> Read { get; set; }
-        internal Action<KeyValuePair<IKey, IValue>> Write { get; set; }
-        internal Func<IKey, IKey, bool> Compare { get; set; }
-        internal Func<IWord, IEnumerable<KeyValuePair<IKey, IValue>>> Map { get; set; }
-        internal Func<IKey, IEnumerable<IValue>, IValue> Reduce { get; set; }
+        public Func<IInput, IEnumerable<IWord>> Read { get; set; }
+        public Action<KeyValuePair<IKey, IValue>> Write { get; set; }
+        public Func<IKey, IKey, bool> Compare { get; set; }
+        public Func<IWord, IEnumerable<KeyValuePair<IKey, IValue>>> Map { get; set; }
+        public Func<IKey, IEnumerable<IValue>, IValue> Reduce { get; set; }
 
         private IEnumerable<IWord> Word;
         private List<KeyValuePair<IKey, IValue>[]> Agregg = new();
@@ -38,16 +38,20 @@ namespace TrabAV1.MapReduce
             Buckets.Clear();
             Pairs.Clear();
         }
-        
-        private TaskAwaiter CompositeTask { get; }
 
         private int[] level;
         private int[] last_to_enter;
-        
+
+        private void ResetSemaphore()
+        {
+            level = new int[ThreadCount];
+            last_to_enter = new int[ThreadCount - 1];
+        }
         private async Task WaitForPermission(int threadId)
         {
             for (int i = 0; i < last_to_enter.Length; i++)
             {
+                Console.WriteLine(threadId);
                 level[threadId] = i;
 
                 last_to_enter[i] = threadId;
@@ -86,6 +90,7 @@ namespace TrabAV1.MapReduce
 
         private async Task BuildAgregg()
         {
+            ResetSemaphore();
             var operationLists = new List<List<IWord>>();
             
             for (int i = 0; i < ThreadCount; i++){
@@ -106,19 +111,21 @@ namespace TrabAV1.MapReduce
 
                 for(int i = 0; i < operationLists.Count; i++){
                     var opList = operationLists[i];
-                    var task = Task.Run(() =>
+                    var i1 = i;
+                    var i2 = i;
+                    var task = Task.Run( async () =>
                     {
                         foreach (var op in opList)
                         {
                             var agregg = Map(op).ToArray();
-                            WaitForPermission(i);
+                            await WaitForPermission(i1);
                             try
                             {
                                 Agregg.Add(agregg);
                             }
                             finally
                             {
-                                SignalRelease(i);
+                                SignalRelease(i1);
                             }
                         }
                     });
@@ -129,10 +136,11 @@ namespace TrabAV1.MapReduce
 
         private async Task ShuffleGroups()
         {
-            var operationLists = new List<List<IValue>>();
+            ResetSemaphore();
+            var operationLists = new List<List<KeyValuePair<IKey, IValue>[]>>();
 
             for (int i = 0; i < ThreadCount; i++){
-                operationLists.Add(new List<IValue>());
+                operationLists.Add(new List<KeyValuePair<IKey, IValue>[]>());
             }
 
             int counter = 0;
@@ -149,19 +157,29 @@ namespace TrabAV1.MapReduce
 
             for(int i = 0; i < operationLists.Count; i++){
                 var opList = operationLists[i];
-                var task = Task.Run(() =>
+                var i1 = i;
+                var task = Task.Run( async () =>
                 {
                     foreach (var op in opList)
                     {
-                        var buckets = Map(op).ToArray();
-                        WaitForPermission(i);
-                        try
+                        foreach (var pair in op)
                         {
-                            Buckets.Add(buckets);
-                        }
-                        finally
-                        {
-                            SignalRelease(i);
+                            await WaitForPermission(i1);
+                            try
+                            {
+                                Buckets.AddOrUpdate(pair.Key, () =>
+                                {
+                                    return new List<IValue> {pair.Value};
+                                }, list =>
+                                {
+                                   list.Add(pair.Value);
+                                   return list;
+                                });
+                            }
+                            finally
+                            {
+                                SignalRelease(i1);
+                            }
                         }
                     }
                 });
@@ -172,28 +190,91 @@ namespace TrabAV1.MapReduce
 
         private async Task ReduceBuckets()
         {
-           
+            ResetSemaphore();
+            var operationLists = new List<List<KeyValuePair<IKey, List<IValue>>>>();
+            
+            for (int i = 0; i < ThreadCount; i++){
+                operationLists.Add(new List<KeyValuePair<IKey, List<IValue>>>());
+            }
+
+            int counter = 0;
+
+            foreach(var d in Buckets){
+                if (counter > ThreadCount){
+                    counter = 0;
+                }
+
+                operationLists[counter].Add(d);
+            }
+                    
+            var operations = new List<Task>();
+
+            for(int i = 0; i < operationLists.Count; i++){
+                var opList = operationLists[i];
+                var i1 = i;
+                var task = Task.Run( async () =>
+                {
+                    foreach (var op in opList)
+                    {
+                        var pair = Reduce(op.Key, op.Value);
+                        await WaitForPermission(i1);
+                        try
+                        {
+                            Pairs.Add(new KeyValuePair<IKey, IValue>(op.Key, pair));
+                        }
+                        finally
+                        {
+                            SignalRelease(i1);
+                        }
+                    }
+                });
+                operations.Add(task);
+            }
+            await Task.WhenAll(operations);
         }
 
         private async Task WritePairs()
         {
+            ResetSemaphore();
+            var operationLists = new List<List<KeyValuePair<IKey, IValue>>>();
             
-        }
-        
-        //Interface implementation: receive arguments from MRBuilder
-        public void Build(
-            Func<IInput, IEnumerable<IWord>> Read,
-            Action<KeyValuePair<IKey, IValue>> Write,
-            Func<IKey, IKey, bool> Compare,
-            Func<IWord, IEnumerable<KeyValuePair<IKey, IValue>>> Map,
-            Func<IKey, IEnumerable<IValue>, IValue> Reduce 
-            )
-        {
-            this.Read = Read;
-            this.Write = Write;
-            this.Compare = Compare;
-            this.Map = Map;
-            this.Reduce = Reduce;
+            for (int i = 0; i < ThreadCount; i++){
+                operationLists.Add(new List<KeyValuePair<IKey, IValue>>());
+            }
+
+            int counter = 0;
+
+            foreach(var d in Pairs){
+                if (counter > ThreadCount){
+                    counter = 0;
+                }
+
+                operationLists[counter].Add(d);
+            }
+                    
+            var operations = new List<Task>();
+
+            for(int i = 0; i < operationLists.Count; i++){
+                var opList = operationLists[i];
+                var i1 = i;
+                var task = Task.Run( async () =>
+                {
+                    foreach (var op in opList)
+                    {
+                        await WaitForPermission(i1);
+                        try
+                        {
+                            Write(op);
+                        }
+                        finally
+                        {
+                            SignalRelease(i1);
+                        }
+                    }
+                });
+                operations.Add(task);
+            }
+            await Task.WhenAll(operations);
         }
     }
 }
