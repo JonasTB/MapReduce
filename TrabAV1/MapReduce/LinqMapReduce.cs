@@ -5,24 +5,20 @@ using System.Linq;
 
 namespace TrabAV1.MapReduce
 {
-    public class LinqMapReduce<
-        TInput,
-        TWord,
-        TKey,
-        TValue> : IMapReduce<TInput, TWord, TKey, TValue>
+    public class LinqMapReduce<IInput, IWord, IKey, IValue> : IMapReduce<IInput, IWord, IKey, IValue>
     {
-        internal Func<TInput, IEnumerable<TWord>> Read { get; set; }
-        internal Action<KeyValuePair<TKey, TValue>> Write { get; set; }
-        internal Func<TKey, TKey, bool> Compare { get; set; }
-        internal Func<TWord, IEnumerable<KeyValuePair<TKey, TValue>>> Map { get; set; }
-        internal Func<TKey, IEnumerable<TValue>, TValue> Reduce { get; set; }
+        internal Func<IInput, IEnumerable<IWord>> Read { get; set; }
+        internal Action<KeyValuePair<IKey, IValue>> Write { get; set; }
+        internal Func<IKey, IKey, bool> Compare { get; set; }
+        internal Func<IWord, IEnumerable<KeyValuePair<IKey, IValue>>> Map { get; set; }
+        internal Func<IKey, IEnumerable<IValue>, IValue> Reduce { get; set; }
         
         
-        private ConcurrentBag<IEnumerable<KeyValuePair<TKey, TValue>>> Agregg = new();
-        private ConcurrentDictionary<TKey, ConcurrentBag<TValue>> Buckets = new();
-        private ConcurrentBag<KeyValuePair<TKey, TValue>> Pairs = new();
+        private ConcurrentBag<IEnumerable<KeyValuePair<IKey, IValue>>> Agregg = new();
+        private ConcurrentDictionary<IKey, ConcurrentBag<IValue>> Buckets = new();
+        private ConcurrentBag<KeyValuePair<IKey, IValue>> Pairs = new();
 
-        public void Run(TInput input)
+        public void Run(IInput input)
         {
             var readData = Read(input);
             
@@ -45,19 +41,19 @@ namespace TrabAV1.MapReduce
             Cleanup();
         }
 
-        private void MapData(TWord word)
+        private void MapData(IWord word)
         {
             var agregg = Map(word);
             Agregg.Add(agregg);
         }
         
-        private void Shuffle(IEnumerable<KeyValuePair<TKey, TValue>> agregg)
+        private void Shuffle(IEnumerable<KeyValuePair<IKey, IValue>> agregg)
         {
             agregg
                 .AsParallel()
                 .ForAll(pair =>
                 {
-                    Buckets.AddOrUpdate(pair.Key, (_) => new ConcurrentBag<TValue> {pair.Value}, (_, val) =>
+                    Buckets.AddOrUpdate(pair.Key, (_) => new ConcurrentBag<IValue> {pair.Value}, (_, val) =>
                     {
                         val.Add(pair.Value);
                         return val;
@@ -65,10 +61,10 @@ namespace TrabAV1.MapReduce
                 });
         }
 
-        private void ReduceBucket(KeyValuePair<TKey, ConcurrentBag<TValue>> bucket)
+        private void ReduceBucket(KeyValuePair<IKey, ConcurrentBag<IValue>> bucket)
         {
             var value = Reduce(bucket.Key, bucket.Value.ToArray());
-            Pairs.Add(new KeyValuePair<TKey, TValue>(bucket.Key, value));
+            Pairs.Add(new KeyValuePair<IKey, IValue>(bucket.Key, value));
         }
 
         private void Cleanup()
@@ -79,11 +75,11 @@ namespace TrabAV1.MapReduce
         }
 
         public void Build(
-            Func<TInput, IEnumerable<TWord>> Read,
-            Action<KeyValuePair<TKey, TValue>> Write,
-            Func<TKey, TKey, bool> Compare,
-            Func<TWord, IEnumerable<KeyValuePair<TKey, TValue>>> Map,
-            Func<TKey, IEnumerable<TValue>, TValue> Reduce
+            Func<IInput, IEnumerable<IWord>> Read,
+            Action<KeyValuePair<IKey, IValue>> Write,
+            Func<IKey, IKey, bool> Compare,
+            Func<IWord, IEnumerable<KeyValuePair<IKey, IValue>>> Map,
+            Func<IKey, IEnumerable<IValue>, IValue> Reduce
             )
         {
             this.Read = Read;

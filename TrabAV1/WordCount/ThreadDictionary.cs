@@ -5,26 +5,26 @@ using System.Linq;
 
 namespace TrabAV1.WordCount
 {
-    public class ThreadDictionary<TKey,TValue> : IDictionary<TKey, TValue>
+    public class ThreadDictionary<IKey,IValue> : IDictionary<IKey, IValue>
     {
-        private class Bucket : IEnumerable<KeyValuePair<TKey, TValue>>
+        private class Bucket : IEnumerable<KeyValuePair<IKey, IValue>>
         {
-            public TKey Key { get; set; }
-            public TValue Value { get; set; }
-            public Bucket Next { get; set; }
+            public IKey Key { get; set; }
+            public IValue Value { get; set; }
+            public Bucket Skip { get; set; }
 
-            public KeyValuePair<TKey, TValue> GetPair()
+            public KeyValuePair<IKey, IValue> GetPair()
             {
                 return new (Key, Value);
             }
 
-            public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+            public IEnumerator<KeyValuePair<IKey, IValue>> GetEnumerator()
             {
                 var bucket = this;
                 while (bucket != null)
                 {
                     yield return bucket.GetPair();
-                    bucket = bucket.Next;
+                    bucket = bucket.Skip;
                 }
             }
 
@@ -57,7 +57,7 @@ namespace TrabAV1.WordCount
             }
         }
         
-        private void InnerAdd(TKey key, TValue value)
+        private void InnerAdd(IKey key, IValue value)
         {
             var index = GetIndex(key);
 
@@ -72,9 +72,9 @@ namespace TrabAV1.WordCount
             else
             {
                 var bucket = Buckets[index];
-                while (bucket.Next != null)
-                    bucket = bucket.Next;
-                bucket.Next = new()
+                while (bucket.Skip != null)
+                    bucket = bucket.Skip;
+                bucket.Skip = new()
                 {
                     Key = key,
                     Value = value
@@ -82,14 +82,14 @@ namespace TrabAV1.WordCount
             }
         }
 
-        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+        public IEnumerator<KeyValuePair<IKey, IValue>> GetEnumerator()
         {
             lock (Buckets)
             {
                 return Buckets.SelectMany(b =>
                 {
                     if (b == null)
-                        return new KeyValuePair<TKey, TValue>[0];
+                        return new KeyValuePair<IKey, IValue>[0];
                     else
                         return b.ToArray();
                 }).GetEnumerator();  
@@ -101,7 +101,7 @@ namespace TrabAV1.WordCount
             return GetEnumerator();
         }
 
-        public void Add(KeyValuePair<TKey, TValue> item)
+        public void Add(KeyValuePair<IKey, IValue> item)
         {
             lock (Buckets)
             {
@@ -117,7 +117,7 @@ namespace TrabAV1.WordCount
             }
         }
 
-        public bool Contains(KeyValuePair<TKey, TValue> item)
+        public bool Contains(KeyValuePair<IKey, IValue> item)
         {
             lock (Buckets)
             {
@@ -125,7 +125,7 @@ namespace TrabAV1.WordCount
             }
         }
 
-        public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
+        public void CopyTo(KeyValuePair<IKey, IValue>[] array, int arrayIndex)
         {
             lock (Buckets)
             {
@@ -137,7 +137,7 @@ namespace TrabAV1.WordCount
             }
         }
 
-        public bool Remove(KeyValuePair<TKey, TValue> item)
+        public bool Remove(KeyValuePair<IKey, IValue> item)
         {
             throw new System.NotImplementedException();
         }
@@ -145,7 +145,7 @@ namespace TrabAV1.WordCount
         public int Count => Buckets.ToArray().Length;
         public bool IsReadOnly => false;
         
-        public void Add(TKey key, TValue value)
+        public void Add(IKey key, IValue value)
         {
             lock (Buckets)
             {
@@ -153,22 +153,22 @@ namespace TrabAV1.WordCount
             }
         }
 
-        public bool ContainsKey(TKey key)
+        public bool ContainsKey(IKey key)
         {
             lock (Buckets)
             {
                 var index = GetIndex(key);
-                var val = Buckets[index]?.Any(b => EqualityComparer<TKey>.Default.Equals(b.Key, key));
+                var val = Buckets[index]?.Any(b => EqualityComparer<IKey>.Default.Equals(b.Key, key));
                 return val.HasValue && val.Value;
             }
         }
 
-        public bool Remove(TKey key)
+        public bool Remove(IKey key)
         {
             throw new System.NotImplementedException();
         }
 
-        public bool TryGetValue(TKey key, out TValue value)
+        public bool TryGetValue(IKey key, out IValue value)
         {
             lock (Buckets)
             {
@@ -177,13 +177,13 @@ namespace TrabAV1.WordCount
 
                 while (bucket != null)
                 {
-                    if (EqualityComparer<TKey>.Default.Equals(bucket.Key, key))
+                    if (EqualityComparer<IKey>.Default.Equals(bucket.Key, key))
                     {
                         value = bucket.Value;
                         return true;
                     }
 
-                    bucket = bucket.Next;
+                    bucket = bucket.Skip;
                 }
 
                 value = default;
@@ -191,7 +191,7 @@ namespace TrabAV1.WordCount
             }
         }
 
-        public void AddOrUpdate(TKey key, Func<TValue> add, Func<TValue, TValue> update)
+        public void AddOrUpdate(IKey key, Func<IValue> add, Func<IValue, IValue> update)
         {
             lock (Buckets)
             {
@@ -206,7 +206,7 @@ namespace TrabAV1.WordCount
             }
         }
         
-        public TValue this[TKey key]
+        public IValue this[IKey key]
         {
             get
             {
@@ -227,13 +227,13 @@ namespace TrabAV1.WordCount
 
                     while (bucket != null)
                     {
-                        if (EqualityComparer<TKey>.Default.Equals(bucket.Key, key))
+                        if (EqualityComparer<IKey>.Default.Equals(bucket.Key, key))
                         {
                             bucket.Value = value;
                             return;
                         }
 
-                        bucket = bucket.Next;
+                        bucket = bucket.Skip;
                     }
                     
                     InnerAdd(key, value);
@@ -241,9 +241,9 @@ namespace TrabAV1.WordCount
             }
         }
 
-        public ICollection<TKey> Keys => Buckets.SelectMany(b => b.Select(kvp => kvp.Key)).ToList();
-        public ICollection<TValue> Values => Buckets.SelectMany(b => b.Select(kvp => kvp.Value)).ToList();
+        public ICollection<IKey> Keys => Buckets.SelectMany(b => b.Select(kvp => kvp.Key)).ToList();
+        public ICollection<IValue> Values => Buckets.SelectMany(b => b.Select(kvp => kvp.Value)).ToList();
 
-        private int GetIndex(TKey obj) => (int) ((uint) obj.GetHashCode() % Buckets.Length);
+        private int GetIndex(IKey obj) => (int) ((uint) obj.GetHashCode() % Buckets.Length);
     }
 }
