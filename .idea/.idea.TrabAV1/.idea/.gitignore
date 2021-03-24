@@ -1,0 +1,13 @@
+﻿# Default ignored files
+/shelf/
+/workspace.xml
+# Rider ignored files
+/modules.xml
+/contentModel.xml
+/projectSettingsUpdater.xml
+/.idea.TrabAV1.iml
+# Datasource local storage ignored files
+/../../../../../../../../:\Users\jonas\RiderProjects\TrabAV1\.idea\.idea.TrabAV1\.idea/dataSources/
+/dataSources.local.xml
+# Editor-based HTTP Client requests
+/httpRequests/
