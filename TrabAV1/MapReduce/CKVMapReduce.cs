@@ -110,12 +110,21 @@ namespace TrabAV1.MapReduce
             var operationLists = new List<List<IWord>>();
             //Algoritmo aqui pra separar a data em X grupos na operation list (IMPLEMENTAR AQUI)
 
-            //var tasks = Word
-                //.Select(w =>
-                //{
-                    //KeyValuePair<IKey, IValue>[] Agregg = new KeyValuePair<IKey, IValue>[0];
+            for (int i = 0; i < ThreadCount; i++){
+                operationLists.Add(new List<IWord>());
+            }
+
+            int counter = 0;
+
+            foreach(var d in Word){
+                if (counter > ThreadCount){
+                    counter = 0;
+                }
+
+                operationLists[counter].Add(d);
+            }
                     
-                var operations = new List<Task>();
+            var operations = new List<Task>();
 
                 for(int i = 0; i < operationLists.Count; i++){
                     var opList = operationLists[i];
