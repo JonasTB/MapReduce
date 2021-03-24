@@ -11,7 +11,7 @@ namespace TrabAV1
     {
         static async Task Main(string[] args)
         {
-            var text = string.Join("\n", Enumerable.Repeat("Deer Bear River\nCar Car River\nDeer Car Bear", 500));
+            var text = "Davi Jonas Davi\nAllan Rodrigo Jonas\nRodrigo Jonas Allan\nDavi Rodrigo Allan";
 
             var mapReduce = new CKVMapReduce<string, string, string, int>
             {
@@ -24,18 +24,7 @@ namespace TrabAV1
                 Reduce = (word, instances) => instances.Sum(),
                 Write = pair => System.Console.WriteLine($"Key: {pair.Key} | Value: {pair.Value}")
             };
-            var sw = Stopwatch.StartNew();
             await mapReduce.RunAsync(text, 4);
-            sw.Stop();
-
-            Console.WriteLine($"Low-Level Map Reduce ran in {sw.ElapsedMilliseconds}ms");
-            
-            //Ex. Output
-            //Key: Deer | Value: 1000
-            //Key: Bear | Value: 1000
-            //Key: River | Value: 1000
-            //Key: Car | Value: 1500
-            //Low-Level Map Reduce ran in 76ms
         }
     }
 }

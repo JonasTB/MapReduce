@@ -51,7 +51,6 @@ namespace TrabAV1.MapReduce
         {
             for (int i = 0; i < last_to_enter.Length; i++)
             {
-                Console.WriteLine(threadId);
                 level[threadId] = i;
 
                 last_to_enter[i] = threadId;
@@ -100,11 +99,12 @@ namespace TrabAV1.MapReduce
             int counter = 0;
 
             foreach(var d in Word){
-                if (counter > ThreadCount){
+                if (counter >= ThreadCount){
                     counter = 0;
                 }
 
                 operationLists[counter].Add(d);
+                counter++;
             }
                     
             var operations = new List<Task>();
@@ -146,11 +146,12 @@ namespace TrabAV1.MapReduce
             int counter = 0;
 
             foreach(var d in Agregg){
-                if (counter > ThreadCount){
+                if (counter >= ThreadCount){
                     counter = 0;
                 }
 
                 operationLists[counter].Add(d);
+                counter++;
             }
                     
             var operations = new List<Task>();
@@ -200,11 +201,12 @@ namespace TrabAV1.MapReduce
             int counter = 0;
 
             foreach(var d in Buckets){
-                if (counter > ThreadCount){
+                if (counter >= ThreadCount){
                     counter = 0;
                 }
 
                 operationLists[counter].Add(d);
+                counter++;
             }
                     
             var operations = new List<Task>();
@@ -245,11 +247,12 @@ namespace TrabAV1.MapReduce
             int counter = 0;
 
             foreach(var d in Pairs){
-                if (counter > ThreadCount){
+                if (counter >= ThreadCount){
                     counter = 0;
                 }
 
                 operationLists[counter].Add(d);
+                counter++;
             }
                     
             var operations = new List<Task>();

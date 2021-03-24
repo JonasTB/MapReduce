@@ -46,17 +46,6 @@ namespace TrabAV1.WordCount
             Buckets = new Bucket[bucketCount];
         }
 
-        private void Rehash(int newCount)
-        {
-            var pairs = Buckets.SelectMany(p => p.ToArray()).ToArray();
-            Buckets = new Bucket[newCount];
-
-            foreach (var pair in pairs)
-            {
-                InnerAdd(pair.Key, pair.Value);
-            }
-        }
-        
         private void InnerAdd(IKey key, IValue value)
         {
             var index = GetIndex(key);
