@@ -26,29 +26,13 @@ namespace TrabAV1.MapReduce
         
         public async Task RunAsync(IInput input, int threadCount)
         {
-            //Set thread count for the operations
             ThreadCount = threadCount;
-            
-            //Parse input into the data type
-            //Eg. 'Deer Bear River\nCar Car River\nDeer Car Bear'->['Deer Bear River', 'Car Car River', 'Deer Car Bear']
             Word = Read(input);
-
-            //Build groups from the read data
-            //Eg. 'Deer Bear River'->['Deer', 'Bear', 'River']
             await BuildAgregg();
-            
-            //Associate unique keys within groups
-            //Eg. ['Deer', 'Bear', 'River'],['Car', 'Car', 'River']->['Deer'],['Bear'],['Car', 'Car'],['River', 'River]
             await ShuffleGroups();
-            
-            //Reduce groups
-            //Eg. ['Car', 'Car']->['Car': 2]
             await ReduceBuckets();
-            
-            //Write each finalized pair
             await WritePairs();
             
-            //Cleanup
             Word = null;
             Agregg.Clear();
             Buckets.Clear();
@@ -60,21 +44,16 @@ namespace TrabAV1.MapReduce
         private int[] level;
         private int[] last_to_enter;
         
-        //Peterson's
         private async Task WaitForPermission(int threadId)
         {
-            //Validação de ordem em niveis
             for (int i = 0; i < last_to_enter.Length; i++)
             {
-                //Marca que a thread está no nivel de validação I
                 level[threadId] = i;
-                //Marca que a thread foi a ultima a entrar nesse nivel
+
                 last_to_enter[i] = threadId;
                 
-                //Condição 1: essa thread não foi a ultima a entrar nesse nivel
                 Func<bool> cond1 = () => last_to_enter[i] != threadId;
-                
-                //Condição 2: não existe thread igual ou mais avançada
+
                 Func<bool> cond2 = () =>
                 {
                     var val = true;
@@ -108,8 +87,7 @@ namespace TrabAV1.MapReduce
         private async Task BuildAgregg()
         {
             var operationLists = new List<List<IWord>>();
-            //Algoritmo aqui pra separar a data em X grupos na operation list (IMPLEMENTAR AQUI)
-
+            
             for (int i = 0; i < ThreadCount; i++){
                 operationLists.Add(new List<IWord>());
             }
@@ -151,92 +129,55 @@ namespace TrabAV1.MapReduce
 
         private async Task ShuffleGroups()
         {
-            //Gets builds the tasks from each piece of data in each group
-            var tasks = Agregg
-                .SelectMany(group =>
+            var operationLists = new List<List<IValue>>();
+
+            for (int i = 0; i < ThreadCount; i++){
+                operationLists.Add(new List<IValue>());
+            }
+
+            int counter = 0;
+
+            foreach(var d in Agregg){
+                if (counter > ThreadCount){
+                    counter = 0;
+                }
+
+                operationLists[counter].Add(d);
+            }
+                    
+            var operations = new List<Task>();
+
+            for(int i = 0; i < operationLists.Count; i++){
+                var opList = operationLists[i];
+                var task = Task.Run(() =>
                 {
-                    return group.Select(pair =>
+                    foreach (var op in opList)
                     {
-                        List<IValue> bucketList = new();
-
-                        //Non-critical section: Add value to the bucket dictionary
-                        //Section is non-criticial due to the dictionary implementation being thread-safe
-                        Action nonCrit = () =>
+                        var buckets = Map(op).ToArray();
+                        WaitForPermission(i);
+                        try
                         {
-                            Buckets.AddOrUpdate(pair.Key, () =>
-                            {
-                                return new List<IValue> {pair.Value};
-                            }, (list) =>
-                            {
-                                list.Add(pair.Value);
-                                return list;
-                            });
-                        };
-
-                        return new ParallelTask
+                            Buckets.Add(buckets);
+                        }
+                        finally
                         {
-                            NonCriticalSection = nonCrit,
-                            CriticalSection = () => { } //No critical section for operation.
-                        };
-                    });
-                }).ToArray();
-
-            //Run tasks, managed by the Semaphore
-            await Semaphore.StartFromTasks(tasks, ThreadCount);
+                            SignalRelease(i);
+                        }
+                    }
+                });
+                operations.Add(task);
+            }
+            await Task.WhenAll(operations);
         }
 
         private async Task ReduceBuckets()
         {
-            //Build tasks from each data in each bucket
-            var tasks = Buckets
-                .Select(b =>
-                {
-                    KeyValuePair<IKey, IValue> pair = new KeyValuePair<IKey, IValue>();
-
-                    //Non-critical section: apply the reductor function to each value group
-                    Action nonCrit = () =>
-                    {
-                        var value = Reduce(b.Key, b.Value);
-                        pair = new KeyValuePair<IKey, IValue>(b.Key, value);
-                    };
-
-                    //Critical section: add the reduced group into the key-value pair list.
-                    Action crit = () =>
-                    {
-                        Pairs.Add(pair);
-                    };
-
-                    return new ParallelTask
-                    {
-                        NonCriticalSection = nonCrit,
-                        CriticalSection = crit
-                    };
-                });
-
-            //Run tasks, managed by the Semaphore
-            await Semaphore.StartFromTasks(tasks, ThreadCount);
+           
         }
 
         private async Task WritePairs()
         {
-            //Build tasks from key-value pairs
-            var tasks = Pairs
-                .Select(p =>
-                {
-                    //Non-critical section: Write finalized key-value pair.
-                    Action nonCrit = () =>
-                    {
-                        Write(p);
-                    };
-
-                    return new ParallelTask
-                    {
-                        CriticalSection = () => { }, //No critical section for operation.
-                        NonCriticalSection = nonCrit
-                    };
-                });
-
-            await Semaphore.StartFromTasks(tasks, ThreadCount);
+            
         }
         
         //Interface implementation: receive arguments from MRBuilder
